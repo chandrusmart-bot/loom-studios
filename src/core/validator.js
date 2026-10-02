@@ -1,12 +1,14 @@
 // Pass/fail checklist gating export.
 import { bppForColours, bmpFileSize } from './params.js';
 import { usedColours } from './quantize.js';
-import { countSmallBlobs } from './despeckle.js';
+import { smallBlobStats } from './despeckle.js';
 import { checkSeamless } from './seamless.js';
 import { analyze } from './analyze.js';
 
 /**
- * state: { indices, W, H, params, seamless (bool), analysis? }
+ * state: { indices, W, H, params, seamless (bool), analysis?, binderMask? }
+ * binderMask (pixels edited by the fixer) excludes binder-caused specks from
+ * the min-feature check; they are still counted in the detail text.
  * Returns { checks:[{id,label,pass,skipped,detail}], ok }.
  * Skipped checks (e.g. seamless when seamless mode is off) count as passing.
  */
@@ -38,8 +40,9 @@ export function validate(state) {
   add('warpFloat', `Warp float <= ${params.lmax}`, a.warp.violations === 0,
     `max ${a.warp.maxFloat}, ${a.warp.violations} violations`);
 
-  const small = countSmallBlobs(indices, W, H, params.minFeature, seamless);
-  add('minFeature', `Min feature >= ${params.minFeature}px`, small === 0, `${small} smaller blobs`);
+  const small = smallBlobStats(indices, W, H, params.minFeature, seamless, state.binderMask || null);
+  add('minFeature', `Min feature >= ${params.minFeature}px`, small.total === 0,
+    `${small.total} smaller blobs` + (small.binderCaused ? ` (+${small.binderCaused} binder-caused, excluded)` : ''));
 
   const size = bmpFileSize(target || bpp || 8, W, H);
   add('fileSize', 'File size estimate', true, `${size} bytes`);

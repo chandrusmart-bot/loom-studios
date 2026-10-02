@@ -131,5 +131,7 @@ export function fix(input, W, H, palette, opts) {
     passes.push({ pass: p, binders: placed, violations: a.violations, excess: a.excess });
     if (!placed) break;
   }
-  return { data, before: initial, after: a, passes, binders, converged: a.violations === 0 };
+  const binderMask = new Uint8Array(data.length); // pixels the fixer edited
+  for (let i = 0; i < data.length; i++) binderMask[i] = data[i] !== input[i] ? 1 : 0;
+  return { data, binderMask, before: initial, after: a, passes, binders, converged: a.violations === 0 };
 }

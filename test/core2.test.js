@@ -103,6 +103,11 @@ test('validator gates', () => {
   const m = new Uint8Array(W * H); m[5 * W + 5] = 1;
   v = validate({ indices: m, W, H, params });
   assert.ok(!v.checks.find((c) => c.id === 'minFeature').pass);
+  // same speck, flagged as a fixer binder: excluded but reported
+  const bm = new Uint8Array(W * H); bm[5 * W + 5] = 1;
+  v = validate({ indices: m, W, H, params, binderMask: bm });
+  const mf = v.checks.find((c) => c.id === 'minFeature');
+  assert.ok(mf.pass); assert.match(mf.detail, /binder-caused/);
 });
 
 const fixtureFiles = readdirSync(new URL('../fixtures/', import.meta.url)).filter((f) => f.endsWith('.png'));
