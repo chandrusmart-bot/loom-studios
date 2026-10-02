@@ -67,3 +67,29 @@ export function resize(src, sw, sh, dw, dh, mode = 'area') {
   if (sw === dw && sh === dh) return Uint8Array.from(src);
   return mode === 'nearest' ? resizeNearest(src, sw, sh, dw, dh) : resizeArea(src, sw, sh, dw, dh);
 }
+
+/**
+ * Downsample an index image by weighted majority vote per destination cell.
+ * Colours other than `calm` (the background index) get `boost` weight so thin
+ * outlines are not swallowed by the field around them. Keeps the palette pure
+ * (no blended in-between colours).
+ */
+export function voteDownsample(idx, sw, sh, dw, dh, nColours, calm = 0, boost = 1.6) {
+  const out = new Uint8Array(dw * dh);
+  const acc = new Float64Array(nColours);
+  for (let y = 0; y < dh; y++) {
+    const y0 = Math.floor((y * sh) / dh), y1 = Math.max(y0 + 1, Math.floor(((y + 1) * sh) / dh));
+    for (let x = 0; x < dw; x++) {
+      const x0 = Math.floor((x * sw) / dw), x1 = Math.max(x0 + 1, Math.floor(((x + 1) * sw) / dw));
+      acc.fill(0);
+      for (let sy = y0; sy < y1 && sy < sh; sy++) for (let sx = x0; sx < x1 && sx < sw; sx++) acc[idx[sy * sw + sx]] += 1;
+      let best = 0, bv = -1;
+      for (let c = 0; c < nColours; c++) {
+        const v = acc[c] * (c === calm ? 1 : boost);
+        if (v > bv) { bv = v; best = c; }
+      }
+      out[y * dw + x] = best;
+    }
+  }
+  return out;
+}

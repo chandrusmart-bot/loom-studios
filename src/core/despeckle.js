@@ -89,7 +89,7 @@ export function despeckle(data, W, H, minFeature = 2, cyclic = false, maxPasses 
           if (cyclic) { nx = (nx + W) % W; ny = (ny + H) % H; }
           else if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
           const q = ny * W + nx;
-          if (labels[q] === id) continue;
+          if (labels[q] === id || out[q] === out[p]) continue; // same colour via a diagonal cannot merge the blob
           votes.set(out[q], (votes.get(out[q]) || 0) + 1);
         }
       }

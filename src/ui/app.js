@@ -1,5 +1,5 @@
 // Loom Float Fixer UI. DOM only: all processing lives in /src/core.
-import { makeParams, applyPreset, PRESETS, repeats, repeatsIsInteger, floatMm, bppForColours, correctedHeight } from '../core/params.js';
+import { makeParams, applyPreset, PRESETS, repeats, repeatsIsInteger, floatMm, bppForColours, correctedHeight, validTileWidths } from '../core/params.js';
 import { DEFAULT_SETTINGS, buildTile } from '../core/pipeline.js';
 import { analyze, summarize, HEAT } from '../core/analyze.js';
 import { fix } from '../core/fixer.js';
@@ -137,7 +137,7 @@ function renderLeft() {
       <div class="btns">${Object.entries(PRESETS).map(([k, v]) => `<button data-preset="${k}" title="${v.note}">${v.label}</button>`).join('')}</div>
       <p class="hint" id="derived"></p>
       <h3>Resize</h3>
-      <div class="row"><div><label>Method</label><select data-s="resizeMode"><option value="area" ${s.resizeMode === 'area' ? 'selected' : ''}>Area average</option><option value="nearest" ${s.resizeMode === 'nearest' ? 'selected' : ''}>Nearest</option></select></div>
+      <div class="row"><div><label>Method</label><select data-s="resizeMode"><option value="vote" ${s.resizeMode === 'vote' ? 'selected' : ''}>Sharp (quantize first)</option><option value="area" ${s.resizeMode === 'area' ? 'selected' : ''}>Area average</option><option value="nearest" ${s.resizeMode === 'nearest' ? 'selected' : ''}>Nearest</option></select></div>
       <div><label title="Height in picks when aspect lock is off">Height (picks)</label><input type="number" data-s="height" min="1" value="${s.height || (state.tile ? state.tile.H : '')}" ${s.lockAspect ? 'disabled' : ''}></div></div>
       ${chk('lockAspect', 'Lock aspect (corrected for EPI/PPI)', s.lockAspect)}
       ${chk('countBackground', 'Count background floats as violations', p.countBackground, 'p')}
@@ -231,7 +231,7 @@ function fillLeft() {
     const ok = repeatsIsInteger(p);
     const h = state.tile ? state.tile.H : p.tileWidth && state.src ? correctedHeight(state.src.width, state.src.height, p.tileWidth, p) : '?';
     $('derived').className = 'hint' + (ok ? '' : ' warn');
-    $('derived').textContent = `Repeats = ${repeats(p)}${ok ? '' : ' (warning: hooks is not a multiple of tile width)'} · ${bppForColours(p.colours) ? bppForColours(p.colours) + '-bpp' : 'too many colours'} · Lmax ${p.lmax} = ${floatMm(p.lmax, p.epi).toFixed(2)} mm · tile ${p.tileWidth}×${h}`;
+    $('derived').textContent = `Repeats = ${repeats(p)}${ok ? '' : ' (warning: hooks is not a multiple of tile width)'} · ${bppForColours(p.colours) ? bppForColours(p.colours) + '-bpp' : 'too many colours'} · Lmax ${p.lmax} = ${floatMm(p.lmax, p.epi).toFixed(2)} mm · tile ${p.tileWidth}×${h} · fits loom: ${validTileWidths(p).join(', ')} (wider = more detail)`;
   }
   if ($('mm')) $('mm').textContent = `Lmax ${p.lmax} = ${floatMm(p.lmax, p.epi).toFixed(2)} mm`;
   if ($('palette') && cur()) {

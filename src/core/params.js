@@ -61,3 +61,10 @@ export function bmpRowSize(bpp, width) {
 export function bmpFileSize(bpp, W, H) {
   return 14 + 40 + (1 << bpp) * 4 + bmpRowSize(bpp, W) * H;
 }
+
+/** Tile widths that divide `hooks` evenly and are multiples of the hook module, ascending. */
+export function validTileWidths(p) {
+  const out = [];
+  for (let w = p.hookModule; w <= p.hooks; w += p.hookModule) if (p.hooks % w === 0) out.push(w);
+  return out;
+}

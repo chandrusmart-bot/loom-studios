@@ -73,11 +73,87 @@ export function medianCutPalette(rgba, n) {
   });
 }
 
+function srgbToLab(r, g, b) {
+  const lin = (v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; };
+  const R = lin(r), G = lin(g), B = lin(b);
+  const f = (t) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+  const fx = f((0.4124 * R + 0.3576 * G + 0.1805 * B) / 0.95047);
+  const fy = f(0.2126 * R + 0.7152 * G + 0.0722 * B);
+  const fz = f((0.0193 * R + 0.1192 * G + 0.9505 * B) / 1.08883);
+  return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
+}
+
+/**
+ * Perceptual (CIELAB) palette of up to n colours: farthest-point seeding that
+ * favours distinct colours over merely populous ones (so small accent colours
+ * survive), then weighted k-means refinement. Deterministic.
+ */
+export function kmeansPalette(rgba, n, iterations = 12) {
+  const count = new Uint32Array(32768);
+  const sum = new Float64Array(32768 * 3);
+  for (let i = 0; i < rgba.length; i += 4) {
+    const k = key15(rgba[i], rgba[i + 1], rgba[i + 2]);
+    count[k]++;
+    sum[k * 3] += rgba[i]; sum[k * 3 + 1] += rgba[i + 1]; sum[k * 3 + 2] += rgba[i + 2];
+  }
+  const pts = [];
+  for (let k = 0; k < 32768; k++) {
+    if (!count[k]) continue;
+    const c = count[k], rgb = [sum[k * 3] / c, sum[k * 3 + 1] / c, sum[k * 3 + 2] / c];
+    pts.push({ c, rgb, lab: srgbToLab(rgb[0], rgb[1], rgb[2]) });
+  }
+  if (!pts.length) return [];
+  n = Math.min(n, pts.length);
+  const d2 = (a, b) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
+  let first = 0;
+  for (let i = 1; i < pts.length; i++) if (pts[i].c > pts[first].c) first = i;
+  const centres = [pts[first].lab.slice()];
+  const minD = pts.map((p) => d2(p.lab, centres[0]));
+  while (centres.length < n) {
+    let best = -1, bs = 0;
+    for (let i = 0; i < pts.length; i++) {
+      const sc = minD[i] * Math.sqrt(pts[i].c);
+      if (sc > bs) { bs = sc; best = i; }
+    }
+    if (best < 0) break;
+    const c = pts[best].lab.slice();
+    centres.push(c);
+    for (let i = 0; i < pts.length; i++) minD[i] = Math.min(minD[i], d2(pts[i].lab, c));
+  }
+  const assign = new Int32Array(pts.length);
+  for (let it = 0; it < iterations; it++) {
+    const acc = centres.map(() => [0, 0, 0, 0]);
+    for (let i = 0; i < pts.length; i++) {
+      let b = 0, bd = Infinity;
+      for (let j = 0; j < centres.length; j++) { const d = d2(pts[i].lab, centres[j]); if (d < bd) { bd = d; b = j; } }
+      assign[i] = b;
+      const a = acc[b], w = pts[i].c;
+      a[0] += pts[i].lab[0] * w; a[1] += pts[i].lab[1] * w; a[2] += pts[i].lab[2] * w; a[3] += w;
+    }
+    centres.forEach((c, j) => { const a = acc[j]; if (a[3]) { c[0] = a[0] / a[3]; c[1] = a[1] / a[3]; c[2] = a[2] / a[3]; } });
+  }
+  // report each cluster's mean sRGB (more faithful than converting the Lab centre back)
+  const rgbAcc = centres.map(() => [0, 0, 0, 0]);
+  for (let i = 0; i < pts.length; i++) {
+    const a = rgbAcc[assign[i]], w = pts[i].c;
+    a[0] += pts[i].rgb[0] * w; a[1] += pts[i].rgb[1] * w; a[2] += pts[i].rgb[2] * w; a[3] += w;
+  }
+  return rgbAcc.filter((a) => a[3]).map((a) => [Math.round(a[0] / a[3]), Math.round(a[1] / a[3]), Math.round(a[2] / a[3])]);
+}
+
 /** Palette index that dominates the image border (default background guess). */
 function borderDominant(indices, W, H, size) {
   const cnt = new Uint32Array(size);
   for (let x = 0; x < W; x++) { cnt[indices[x]]++; cnt[indices[(H - 1) * W + x]]++; }
   for (let y = 0; y < H; y++) { cnt[indices[y * W]]++; cnt[indices[y * W + W - 1]]++; }
+  let best = 0;
+  for (let i = 1; i < size; i++) if (cnt[i] > cnt[best]) best = i;
+  return best;
+}
+
+function mostPopulous(indices, size) {
+  const cnt = new Uint32Array(size);
+  for (let i = 0; i < indices.length; i++) cnt[indices[i]]++;
   let best = 0;
   for (let i = 1; i < size; i++) if (cnt[i] > cnt[best]) best = i;
   return best;
@@ -104,7 +180,7 @@ function reorder(indices, palette, bg) {
 export function quantize(rgba, W, H, n, opts = {}) {
   if (!(n >= 1)) throw new Error('Colour count must be at least 1');
   n = Math.min(256, Math.floor(n));
-  let palette = medianCutPalette(rgba, n);
+  let palette = opts.method === 'median' ? medianCutPalette(rgba, n) : kmeansPalette(rgba, n);
   if (!palette.length) throw new Error('Image has no pixels');
   if (opts.background) {
     const bgc = opts.background;
@@ -129,7 +205,9 @@ export function quantize(rgba, W, H, n, opts = {}) {
       }
     }
   }
-  const bg = opts.background ? nearest(palette, ...opts.background) : borderDominant(indices, W, H, palette.length);
+  const bg = opts.background ? nearest(palette, ...opts.background)
+    : opts.bgMode === 'population' ? mostPopulous(indices, palette.length)
+    : borderDominant(indices, W, H, palette.length);
   return reorder(indices, palette, bg);
 }
 
