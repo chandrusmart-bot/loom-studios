@@ -168,3 +168,12 @@ export function setPaletteColour(palette, i, rgb) {
   np[i] = [rgb[0], rgb[1], rgb[2]];
   return np;
 }
+
+/** Swap palette slots a and b (used to make a colour the background, index 0). */
+export function swapColours(indices, palette, a, b) {
+  const out = Uint8Array.from(indices);
+  for (let i = 0; i < out.length; i++) if (out[i] === a) out[i] = b; else if (out[i] === b) out[i] = a;
+  const np = palette.map((c) => c.slice());
+  [np[a], np[b]] = [np[b], np[a]];
+  return { indices: out, palette: np };
+}

@@ -118,3 +118,11 @@ test('fixtures decode and quantize to tile width', () => {
   const q = quantize(small, W, H, 6);
   assert.ok(usedColours(q.indices) <= 6);
 });
+
+import { swapColours } from '../src/core/quantize.js';
+test('swapColours moves a colour to index 0', () => {
+  const r = swapColours(Uint8Array.from([0, 1, 2, 1]), [[1, 1, 1], [2, 2, 2], [3, 3, 3]], 0, 1);
+  assert.deepEqual([...r.indices], [1, 0, 2, 0]);
+  assert.deepEqual(r.palette[0], [2, 2, 2]);
+  assert.deepEqual(r.palette[1], [1, 1, 1]);
+});

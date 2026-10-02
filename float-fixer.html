@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loom Float Fixer</title>
+<link rel="stylesheet" href="src/ui/styles.css">
+</head>
+<body>
+<header>
+  <h1>Loom Float Fixer</h1>
+  <button id="undo" title="Undo (Ctrl+Z)">Undo</button>
+  <button id="redo" title="Redo (Ctrl+Shift+Z)">Redo</button>
+  <button id="revert" title="Revert to the original quantized tile">Revert</button>
+  <span class="spacer"></span>
+  <button id="selftest" title="Run the core checks in this browser">Self-test</button>
+  <button id="theme" title="Toggle dark / light">Theme</button>
+</header>
+<nav class="steps" id="steps"></nav>
+<div id="banner" role="alert"></div>
+<main>
+  <section class="panel" id="left"></section>
+  <section id="stage">
+    <div class="toolbar" id="toolbar">
+      <div class="seg" id="viewMode" title="What to display">
+        <button data-v="original">Original</button><button data-v="tile">Tile</button><button data-v="3x3">3×3</button><button data-v="body">Body</button>
+      </div>
+      <div class="seg" id="heatMode" title="Float heatmap overlay">
+        <button data-h="off">No heat</button><button data-h="weft">Weft</button><button data-h="warp">Warp</button><button data-h="both">Both</button>
+      </div>
+      <div class="seg" id="cmpMode" title="Compare original quantized with the current fix">
+        <button data-c="before">Before</button><button data-c="after">After</button>
+      </div>
+      <label class="inline"><input type="checkbox" id="grid"> Grid</label>
+      <button id="fit">Fit</button>
+      <span class="legend hint"><span style="background:#28be5a"></span>OK<span style="background:#f5aa14"></span>near<span style="background:#e62828"></span>violation</span>
+    </div>
+    <div id="canvasWrap"><canvas id="view"></canvas></div>
+    <div id="status"></div>
+  </section>
+  <aside id="right">
+    <div class="panel" id="metrics"></div>
+    <div class="panel" id="checks" style="margin-top:12px"></div>
+    <div class="panel" id="selftestOut" style="margin-top:12px;display:none"></div>
+  </aside>
+</main>
+<script type="module" src="src/ui/app.js"></script>
+</body>
+</html>
