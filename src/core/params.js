@@ -56,3 +56,8 @@ export function correctedHeight(srcW, srcH, tileW, p) {
 export function bmpRowSize(bpp, width) {
   return Math.floor((bpp * width + 31) / 32) * 4;
 }
+
+/** Estimated BMP file size in bytes for an indexed image. */
+export function bmpFileSize(bpp, W, H) {
+  return 14 + 40 + (1 << bpp) * 4 + bmpRowSize(bpp, W) * H;
+}
